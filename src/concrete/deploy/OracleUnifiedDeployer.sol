@@ -3,13 +3,13 @@
 pragma solidity =0.8.25;
 
 import {PythOracleAdapterBeaconSetDeployer} from "src/concrete/deploy/PythOracleAdapterBeaconSetDeployer.sol";
-import {
-    PassthroughProtocolAdapterBeaconSetDeployer
-} from "src/concrete/deploy/PassthroughProtocolAdapterBeaconSetDeployer.sol";
+import {PassthroughProtocolAdapterBeaconSetDeployer} from
+    "src/concrete/deploy/PassthroughProtocolAdapterBeaconSetDeployer.sol";
 import {MorphoProtocolAdapterBeaconSetDeployer} from "src/concrete/deploy/MorphoProtocolAdapterBeaconSetDeployer.sol";
-import {PythOracleAdapter} from "src/concrete/oracle/PythOracleAdapter.sol";
-import {PassthroughProtocolAdapter, AggregatorV3Interface} from "src/concrete/protocol/PassthroughProtocolAdapter.sol";
+import {PythOracleAdapter, PythOracleAdapterConfig} from "src/concrete/oracle/PythOracleAdapter.sol";
+import {PassthroughProtocolAdapter} from "src/concrete/protocol/PassthroughProtocolAdapter.sol";
 import {MorphoProtocolAdapter} from "src/concrete/protocol/MorphoProtocolAdapter.sol";
+import {AggregatorV3Interface} from "src/interface/IAggregatorV3.sol";
 import {LibProdDeploy} from "src/lib/LibProdDeploy.sol";
 
 /// @title OracleUnifiedDeployer
@@ -20,27 +20,20 @@ import {LibProdDeploy} from "src/lib/LibProdDeploy.sol";
 contract OracleUnifiedDeployer {
     /// Emitted when a new oracle and protocol adapter set is deployed.
     event Deployment(
-        address sender,
-        address pythOracleAdapter,
-        address morphoProtocolAdapter,
-        address passthroughProtocolAdapter
+        address sender, address pythOracleAdapter, address morphoProtocolAdapter, address passthroughProtocolAdapter
     );
 
     /// @notice Deploy oracle + all protocol adapters for a new asset.
     /// @param st0xToken The st0x token address.
     /// @param priceId The Pyth price feed ID.
     /// @param maxAge Maximum acceptable price age in seconds.
-    /// @param description_ Human-readable description, e.g., "AAPL / USD".
-    function newOracleAndProtocolAdapters(
-        address st0xToken,
-        bytes32 priceId,
-        uint256 maxAge,
-        string memory description_
-    ) external {
+    function newOracleAndProtocolAdapters(address st0xToken, bytes32 priceId, uint256 maxAge) external {
         // 1. Deploy oracle adapter
         PythOracleAdapter oracleAdapter = PythOracleAdapterBeaconSetDeployer(
             LibProdDeploy.PYTH_ORACLE_ADAPTER_BEACON_SET_DEPLOYER
-        ).newPythOracleAdapter(st0xToken, priceId, maxAge, description_, msg.sender);
+        ).newPythOracleAdapter(
+            PythOracleAdapterConfig({st0xToken: st0xToken, priceId: priceId, maxAge: maxAge, admin: msg.sender})
+        );
 
         AggregatorV3Interface oracleRef = AggregatorV3Interface(address(oracleAdapter));
 

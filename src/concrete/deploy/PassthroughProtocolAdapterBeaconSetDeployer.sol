@@ -5,10 +5,12 @@ pragma solidity =0.8.25;
 import {IBeacon} from "openzeppelin-contracts/contracts/proxy/beacon/IBeacon.sol";
 import {UpgradeableBeacon} from "openzeppelin-contracts/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {BeaconProxy} from "openzeppelin-contracts/contracts/proxy/beacon/BeaconProxy.sol";
+import {ICLONEABLE_V2_SUCCESS} from "rain.factory/interface/ICloneableV2.sol";
 import {
     PassthroughProtocolAdapter,
-    AggregatorV3Interface
+    PassthroughProtocolAdapterConfig
 } from "src/concrete/protocol/PassthroughProtocolAdapter.sol";
+import {AggregatorV3Interface} from "src/interface/IAggregatorV3.sol";
 
 /// @dev Error raised when a zero address is provided for the implementation.
 error ZeroImplementation();
@@ -17,8 +19,8 @@ error ZeroImplementation();
 /// owner.
 error ZeroBeaconOwner();
 
-/// @dev Error raised when a zero address is provided for the oracle.
-error ZeroOracle();
+/// @dev Error raised when initialization of the protocol adapter fails.
+error InitializeAdapterFailed();
 
 /// @title PassthroughProtocolAdapterBeaconSetDeployerConfig
 /// @notice Configuration for the PassthroughProtocolAdapterBeaconSetDeployer
@@ -62,12 +64,15 @@ contract PassthroughProtocolAdapterBeaconSetDeployer {
         external
         returns (PassthroughProtocolAdapter)
     {
-        if (address(oracle) == address(0)) revert ZeroOracle();
-
         PassthroughProtocolAdapter adapter =
             PassthroughProtocolAdapter(address(new BeaconProxy(address(I_PASSTHROUGH_PROTOCOL_ADAPTER_BEACON), "")));
 
-        adapter.initialize(oracle, admin);
+        if (
+            adapter.initialize(abi.encode(PassthroughProtocolAdapterConfig({oracle: oracle, admin: admin})))
+                != ICLONEABLE_V2_SUCCESS
+        ) {
+            revert InitializeAdapterFailed();
+        }
 
         emit Deployment(msg.sender, address(adapter));
 

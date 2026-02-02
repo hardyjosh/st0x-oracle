@@ -5,8 +5,9 @@ pragma solidity =0.8.25;
 import {IBeacon} from "openzeppelin-contracts/contracts/proxy/beacon/IBeacon.sol";
 import {UpgradeableBeacon} from "openzeppelin-contracts/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {BeaconProxy} from "openzeppelin-contracts/contracts/proxy/beacon/BeaconProxy.sol";
-import {MorphoProtocolAdapter} from "src/concrete/protocol/MorphoProtocolAdapter.sol";
-import {AggregatorV3Interface} from "src/concrete/protocol/PassthroughProtocolAdapter.sol";
+import {ICLONEABLE_V2_SUCCESS} from "rain.factory/interface/ICloneableV2.sol";
+import {MorphoProtocolAdapter, MorphoProtocolAdapterConfig} from "src/concrete/protocol/MorphoProtocolAdapter.sol";
+import {AggregatorV3Interface} from "src/interface/IAggregatorV3.sol";
 
 /// @dev Error raised when a zero address is provided for the implementation.
 error ZeroImplementation();
@@ -15,8 +16,8 @@ error ZeroImplementation();
 /// owner.
 error ZeroBeaconOwner();
 
-/// @dev Error raised when a zero address is provided for the oracle.
-error ZeroOracle();
+/// @dev Error raised when initialization of the protocol adapter fails.
+error InitializeAdapterFailed();
 
 /// @title MorphoProtocolAdapterBeaconSetDeployerConfig
 /// @notice Configuration for the MorphoProtocolAdapterBeaconSetDeployer
@@ -58,12 +59,15 @@ contract MorphoProtocolAdapterBeaconSetDeployer {
         external
         returns (MorphoProtocolAdapter)
     {
-        if (address(oracle) == address(0)) revert ZeroOracle();
-
         MorphoProtocolAdapter adapter =
             MorphoProtocolAdapter(address(new BeaconProxy(address(I_MORPHO_PROTOCOL_ADAPTER_BEACON), "")));
 
-        adapter.initialize(oracle, admin);
+        if (
+            adapter.initialize(abi.encode(MorphoProtocolAdapterConfig({oracle: oracle, admin: admin})))
+                != ICLONEABLE_V2_SUCCESS
+        ) {
+            revert InitializeAdapterFailed();
+        }
 
         emit Deployment(msg.sender, address(adapter));
 

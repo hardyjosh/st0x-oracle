@@ -1,3 +1,6 @@
 [submodule "lib/rain.pyth"]
 	path = lib/rain.pyth
 	url = https://github.com/rainlanguage/rain.pyth
+[submodule "lib/st0x.deploy"]
+	path = lib/st0x.deploy
+	url = https://github.com/S01-Issuer/st0x.deploy

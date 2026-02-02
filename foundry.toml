@@ -12,7 +12,14 @@ bytecode_hash = "none"
 cbor_metadata = false
 
 remappings = [
-    "rain.pyth/=lib/rain.pyth/src/",
-    "pyth-sdk/=lib/pyth-sdk-solidity/",
+    # Direct deps
     "openzeppelin-contracts/=lib/openzeppelin-contracts/",
+    "pyth-sdk/=lib/rain.pyth/lib/pyth-crosschain/target_chains/ethereum/sdk/solidity/",
+    "rain.pyth/=lib/rain.pyth/",
+    "rain.factory/=lib/st0x.deploy/lib/ethgild/lib/rain.factory/src/",
+    "src/=src/",
+    # Transitive deps (forge doesn't use each lib's own remappings)
+    "rain.math.float/=lib/rain.pyth/lib/rain.interpreter/lib/rain.interpreter.interface/lib/rain.math.float/src/",
+    "rain.intorastring/=lib/rain.pyth/lib/rain.interpreter/lib/rain.interpreter.interface/lib/rain.intorastring/src/",
 ]
+

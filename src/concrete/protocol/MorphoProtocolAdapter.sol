@@ -2,8 +2,9 @@
 // SPDX-FileCopyrightText: Copyright (c) 2020 Rain Open Source Software Ltd
 pragma solidity =0.8.25;
 
+import {ICLONEABLE_V2_SUCCESS, ICloneableV2} from "rain.factory/interface/ICloneableV2.sol";
 import {Initializable} from "openzeppelin-contracts/contracts/proxy/utils/Initializable.sol";
-import {AggregatorV3Interface} from "src/concrete/protocol/PassthroughProtocolAdapter.sol";
+import {AggregatorV3Interface} from "src/interface/IAggregatorV3.sol";
 
 /// @dev Error raised when the caller is not the admin.
 error OnlyAdmin();
@@ -19,18 +20,29 @@ interface IOracle {
     function price() external view returns (uint256);
 }
 
+/// @title MorphoProtocolAdapterConfig
+/// @notice Configuration for MorphoProtocolAdapter initialization.
+/// @param oracle The initial oracle adapter address.
+/// @param admin The admin address.
+struct MorphoProtocolAdapterConfig {
+    AggregatorV3Interface oracle;
+    address admin;
+}
+
 /// @title MorphoProtocolAdapter
 /// @notice Protocol adapter for Morpho Blue. Implements Morpho's IOracle
 /// interface by reading from an underlying AggregatorV3Interface oracle and
 /// scaling from 8 decimals to 36 decimals.
 /// The oracle reference is updatable by the admin, allowing oracle swaps
 /// without Morpho governance (oracle addresses are immutable in Morpho markets).
-contract MorphoProtocolAdapter is IOracle, Initializable {
+contract MorphoProtocolAdapter is IOracle, ICloneableV2, Initializable {
     /// @dev The underlying oracle adapter implementing AggregatorV3Interface.
     AggregatorV3Interface public oracle;
     /// @dev Admin address for governance actions.
     address public admin;
 
+    /// @dev Emitted when the adapter is initialized.
+    event MorphoProtocolAdapterInitialized(address indexed sender, MorphoProtocolAdapterConfig config);
     /// @dev Emitted when the oracle reference is updated.
     event OracleSet(address indexed oldOracle, address indexed newOracle);
 
@@ -38,13 +50,26 @@ contract MorphoProtocolAdapter is IOracle, Initializable {
         _disableInitializers();
     }
 
-    /// @notice Initialize the protocol adapter.
-    /// @param oracle_ The initial oracle adapter address.
-    /// @param admin_ The admin address.
-    function initialize(AggregatorV3Interface oracle_, address admin_) external initializer {
-        if (address(oracle_) == address(0)) revert ZeroOracle();
-        oracle = oracle_;
-        admin = admin_;
+    /// As per ICloneableV2, this overload MUST always revert. Documents the
+    /// signature of the initialize function.
+    /// @param config The initialization configuration.
+    function initialize(MorphoProtocolAdapterConfig memory config) external pure returns (bytes32) {
+        (config);
+        revert InitializeSignatureFn();
+    }
+
+    /// @inheritdoc ICloneableV2
+    function initialize(bytes calldata data) external initializer returns (bytes32) {
+        MorphoProtocolAdapterConfig memory config = abi.decode(data, (MorphoProtocolAdapterConfig));
+
+        if (address(config.oracle) == address(0)) revert ZeroOracle();
+
+        oracle = config.oracle;
+        admin = config.admin;
+
+        emit MorphoProtocolAdapterInitialized(msg.sender, config);
+
+        return ICLONEABLE_V2_SUCCESS;
     }
 
     modifier onlyAdmin() {

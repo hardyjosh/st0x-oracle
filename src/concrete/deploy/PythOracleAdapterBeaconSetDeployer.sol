@@ -5,7 +5,8 @@ pragma solidity =0.8.25;
 import {IBeacon} from "openzeppelin-contracts/contracts/proxy/beacon/IBeacon.sol";
 import {UpgradeableBeacon} from "openzeppelin-contracts/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {BeaconProxy} from "openzeppelin-contracts/contracts/proxy/beacon/BeaconProxy.sol";
-import {PythOracleAdapter} from "src/concrete/oracle/PythOracleAdapter.sol";
+import {ICLONEABLE_V2_SUCCESS} from "rain.factory/interface/ICloneableV2.sol";
+import {PythOracleAdapter, PythOracleAdapterConfig} from "src/concrete/oracle/PythOracleAdapter.sol";
 
 /// @dev Error raised when a zero address is provided for the implementation.
 error ZeroImplementation();
@@ -14,14 +15,8 @@ error ZeroImplementation();
 /// owner.
 error ZeroBeaconOwner();
 
-/// @dev Error raised when a zero address is provided for the st0x token.
-error ZeroSt0xToken();
-
-/// @dev Error raised when a zero price ID is provided.
-error ZeroPriceId();
-
-/// @dev Error raised when a zero max age is provided.
-error ZeroMaxAge();
+/// @dev Error raised when initialization of the oracle adapter fails.
+error InitializeOracleFailed();
 
 /// @title PythOracleAdapterBeaconSetDeployerConfig
 /// @notice Configuration for the PythOracleAdapterBeaconSetDeployer
@@ -56,27 +51,15 @@ contract PythOracleAdapterBeaconSetDeployer {
     }
 
     /// @notice Deploys and initializes a new PythOracleAdapter proxy.
-    /// @param st0xToken The st0x token address.
-    /// @param priceId The Pyth price feed ID.
-    /// @param maxAge Maximum acceptable price age in seconds.
-    /// @param description_ Human-readable description.
-    /// @param admin The admin address for governance.
+    /// @param config The initialization configuration.
     /// @return adapter The deployed PythOracleAdapter proxy.
-    function newPythOracleAdapter(
-        address st0xToken,
-        bytes32 priceId,
-        uint256 maxAge,
-        string memory description_,
-        address admin
-    ) external returns (PythOracleAdapter) {
-        if (st0xToken == address(0)) revert ZeroSt0xToken();
-        if (priceId == bytes32(0)) revert ZeroPriceId();
-        if (maxAge == 0) revert ZeroMaxAge();
-
+    function newPythOracleAdapter(PythOracleAdapterConfig memory config) external returns (PythOracleAdapter) {
         PythOracleAdapter adapter =
             PythOracleAdapter(address(new BeaconProxy(address(I_PYTH_ORACLE_ADAPTER_BEACON), "")));
 
-        adapter.initialize(st0xToken, priceId, maxAge, description_, admin);
+        if (adapter.initialize(abi.encode(config)) != ICLONEABLE_V2_SUCCESS) {
+            revert InitializeOracleFailed();
+        }
 
         emit Deployment(msg.sender, address(adapter));
 

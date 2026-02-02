@@ -6,6 +6,9 @@ pragma solidity ^0.8.25;
 /// @notice Hardcoded production deployment addresses. Provides an audit trail
 /// in git of any address modifications.
 library LibProdDeploy {
+    /// TODO: Set to the founder multisig address.
+    address constant BEACON_INITIAL_OWNER = address(0);
+
     /// TODO: Set after initial deployment to Base.
     address constant PYTH_ORACLE_ADAPTER_BEACON_SET_DEPLOYER = address(0);
 

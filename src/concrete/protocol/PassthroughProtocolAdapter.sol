@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: Copyright (c) 2020 Rain Open Source Software Ltd
 pragma solidity =0.8.25;
 
+import {ICLONEABLE_V2_SUCCESS, ICloneableV2} from "rain.factory/interface/ICloneableV2.sol";
 import {Initializable} from "openzeppelin-contracts/contracts/proxy/utils/Initializable.sol";
+import {AggregatorV3Interface} from "src/interface/IAggregatorV3.sol";
 
 /// @dev Error raised when the caller is not the admin.
 error OnlyAdmin();
@@ -10,16 +12,13 @@ error OnlyAdmin();
 /// @dev Error raised when a zero address is provided for the oracle.
 error ZeroOracle();
 
-/// @dev Interface matching Chainlink's AggregatorV3Interface.
-/// We define it here to avoid pulling in Chainlink as a dependency.
-interface AggregatorV3Interface {
-    function decimals() external view returns (uint8);
-    function description() external view returns (string memory);
-    function latestAnswer() external view returns (int256);
-    function latestRoundData()
-        external
-        view
-        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
+/// @title PassthroughProtocolAdapterConfig
+/// @notice Configuration for PassthroughProtocolAdapter initialization.
+/// @param oracle The initial oracle adapter address.
+/// @param admin The admin address.
+struct PassthroughProtocolAdapterConfig {
+    AggregatorV3Interface oracle;
+    address admin;
 }
 
 /// @title PassthroughProtocolAdapter
@@ -28,12 +27,14 @@ interface AggregatorV3Interface {
 /// calls to the underlying oracle adapter. The oracle reference is updatable
 /// by the admin, allowing oracle swaps without protocol governance.
 /// Deploy multiple proxy instances from the same beacon for different protocols.
-contract PassthroughProtocolAdapter is Initializable {
+contract PassthroughProtocolAdapter is ICloneableV2, Initializable {
     /// @dev The underlying oracle adapter implementing AggregatorV3Interface.
     AggregatorV3Interface public oracle;
     /// @dev Admin address for governance actions.
     address public admin;
 
+    /// @dev Emitted when the adapter is initialized.
+    event PassthroughProtocolAdapterInitialized(address indexed sender, PassthroughProtocolAdapterConfig config);
     /// @dev Emitted when the oracle reference is updated.
     event OracleSet(address indexed oldOracle, address indexed newOracle);
 
@@ -41,13 +42,26 @@ contract PassthroughProtocolAdapter is Initializable {
         _disableInitializers();
     }
 
-    /// @notice Initialize the protocol adapter.
-    /// @param oracle_ The initial oracle adapter address.
-    /// @param admin_ The admin address.
-    function initialize(AggregatorV3Interface oracle_, address admin_) external initializer {
-        if (address(oracle_) == address(0)) revert ZeroOracle();
-        oracle = oracle_;
-        admin = admin_;
+    /// As per ICloneableV2, this overload MUST always revert. Documents the
+    /// signature of the initialize function.
+    /// @param config The initialization configuration.
+    function initialize(PassthroughProtocolAdapterConfig memory config) external pure returns (bytes32) {
+        (config);
+        revert InitializeSignatureFn();
+    }
+
+    /// @inheritdoc ICloneableV2
+    function initialize(bytes calldata data) external initializer returns (bytes32) {
+        PassthroughProtocolAdapterConfig memory config = abi.decode(data, (PassthroughProtocolAdapterConfig));
+
+        if (address(config.oracle) == address(0)) revert ZeroOracle();
+
+        oracle = config.oracle;
+        admin = config.admin;
+
+        emit PassthroughProtocolAdapterInitialized(msg.sender, config);
+
+        return ICLONEABLE_V2_SUCCESS;
     }
 
     modifier onlyAdmin() {

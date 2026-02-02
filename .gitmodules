@@ -1,0 +1,3 @@
+[submodule "lib/rain.pyth"]
+	path = lib/rain.pyth
+	url = https://github.com/rainlanguage/rain.pyth

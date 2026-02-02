@@ -7,18 +7,18 @@ Oracle adapter system that bridges Pyth Network price feeds to DeFi lending prot
 ```
   PROTOCOL ADAPTERS (indirection layer)
 
-  ┌──────────────────────┐   ┌──────────────────────────────────────┐
+  ┌───────────────────────┐   ┌──────────────────────────────────────┐
   │ MorphoProtocolAdapter │   │ PassthroughProtocolAdapter           │
-  │ IOracle (8→36 dec)   │   │ (instances: Aave, Compound, ...)    │
-  │                      │   │ AggregatorV3Interface passthrough    │
-  └──────────┬───────────┘   └──────────────────┬───────────────────┘
-             │                                  │
-             └────────────────┬─────────────────┘
+  │ IOracle (8→36 dec)    │   │ (instances: Aave, Compound, ...)     │
+  │                       │   │ AggregatorV3Interface passthrough    │
+  └──────────┬────────────┘   └──────────────────┬───────────────────┘
+             │                                   │
+             └────────────────┬──────────────────┘
                               │
                               ▼
-                ┌──────────────────────┐
-                │ AggregatorV3Interface │  ← contract boundary
-                └──────────────────────┘
+                  ┌───────────────────────┐
+                  │ AggregatorV3Interface │  ← contract boundary
+                  └───────────────────────┘
                               ▲
                               │
                     ┌─────────┴─────────┐

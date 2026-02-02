@@ -1,66 +1,102 @@
-## Foundry
+# st0x.oracle
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Oracle adapter system that bridges Pyth Network price feeds to DeFi lending protocols (Morpho Blue, Aave V3, Compound V3). Two-layer architecture separates oracle adapters (price source) from protocol adapters (protocol-specific interface), allowing independent upgrades and oracle swaps without protocol governance.
 
-Foundry consists of:
+## Architecture
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+```
+PROTOCOL ADAPTERS (indirection layer)
 
-## Documentation
+┌─────────────────────┐  ┌──────────────────────────────────┐
+│ MorphoProtocolAdapter│  │ PassthroughProtocolAdapter       │
+│ IOracle (8→36 dec)  │  │ (instances: Aave, Compound, ...) │
+│                     │  │ AggregatorV3Interface passthrough │
+└─────────┬───────────┘  └──────────────┬───────────────────┘
+          └──────────┬──────────────────┘
+                     ▼
+          ┌─────────────────────┐
+          │ AggregatorV3Interface│  ← contract boundary
+          └─────────────────────┘
+                     ▲
+          ┌──────────┴──────────┐
+          ▼                     ▼
+┌─────────────────┐   ┌─────────────────┐
+│PythOracleAdapter│   │ Future adapters │
+│ Pyth → 8 dec    │   │ (Chainlink etc) │
+│ pause, admin    │   │                 │
+└─────────────────┘   └─────────────────┘
 
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+ORACLE ADAPTERS (canonical price source per asset)
 ```
 
-### Test
+**Oracle layer** -- one `PythOracleAdapter` per asset, implements `AggregatorV3Interface` at 8 decimals. Governance controls (pause for corporate actions) live here.
 
-```shell
-$ forge test
+**Protocol layer** -- `PassthroughProtocolAdapter` (Aave/Compound/any Chainlink-compatible) and `MorphoProtocolAdapter` (scales 8 to 36 decimals). Each has `setOracle()` so the underlying oracle can be swapped without touching protocol config.
+
+**Deployers** -- beacon proxy pattern via `st0x.deploy`. `OracleUnifiedDeployer` orchestrates deploying an oracle adapter + all protocol adapters for a new asset in one call.
+
+## Setup
+
+This project uses Nix flakes for reproducible toolchain management.
+
+```bash
+nix develop
 ```
 
-### Format
+## Build & Test
 
-```shell
-$ forge fmt
+```bash
+forge build
+forge test
+forge test -vvv          # verbose
+forge fmt --check        # check formatting
 ```
 
-### Gas Snapshots
+Fork tests require a Base RPC URL:
 
-```shell
-$ forge snapshot
+```bash
+export RPC_URL_BASE_FORK=<your-base-rpc-url>
+forge test
 ```
 
-### Anvil
+## Repository Structure
 
-```shell
-$ anvil
+```
+src/
+├── concrete/
+│   ├── oracle/
+│   │   └── PythOracleAdapter.sol
+│   ├── protocol/
+│   │   ├── MorphoProtocolAdapter.sol
+│   │   └── PassthroughProtocolAdapter.sol
+│   └── deploy/
+│       ├── PythOracleAdapterBeaconSetDeployer.sol
+│       ├── MorphoProtocolAdapterBeaconSetDeployer.sol
+│       ├── PassthroughProtocolAdapterBeaconSetDeployer.sol
+│       └── OracleUnifiedDeployer.sol
+├── interface/
+│   └── IAggregatorV3.sol
+└── lib/
+    └── LibProdDeploy.sol
+test/
+├── abstract/
+│   └── PythOracleAdapterTest.sol
+├── lib/
+│   └── LibFork.sol
+└── src/
+    └── concrete/
+        ├── deploy/
+        ├── oracle/
+        └── protocol/
 ```
 
-### Deploy
+## Dependencies
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
+- [rain.pyth](https://github.com/rainlanguage/rain.pyth) -- `LibPyth.getPriceFeedContract()` and price feed ID constants
+- [pyth-sdk-solidity](https://github.com/pyth-network/pyth-sdk-solidity) -- `IPyth`, `PythStructs`
+- [st0x.deploy](https://github.com/S01-Issuer/st0x.deploy) -- `BeaconSetDeployer` pattern, `ICloneableV2`
+- [openzeppelin-contracts](https://github.com/OpenZeppelin/openzeppelin-contracts) -- `UpgradeableBeacon`, `BeaconProxy`, `Initializable`
 
-### Cast
+## License
 
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+DCL-1.0

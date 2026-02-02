@@ -5,28 +5,32 @@ Oracle adapter system that bridges Pyth Network price feeds to DeFi lending prot
 ## Architecture
 
 ```
-PROTOCOL ADAPTERS (indirection layer)
+  PROTOCOL ADAPTERS (indirection layer)
 
-┌─────────────────────┐  ┌──────────────────────────────────┐
-│ MorphoProtocolAdapter│  │ PassthroughProtocolAdapter       │
-│ IOracle (8→36 dec)  │  │ (instances: Aave, Compound, ...) │
-│                     │  │ AggregatorV3Interface passthrough │
-└─────────┬───────────┘  └──────────────┬───────────────────┘
-          └──────────┬──────────────────┘
-                     ▼
-          ┌─────────────────────┐
-          │ AggregatorV3Interface│  ← contract boundary
-          └─────────────────────┘
-                     ▲
-          ┌──────────┴──────────┐
-          ▼                     ▼
-┌─────────────────┐   ┌─────────────────┐
-│PythOracleAdapter│   │ Future adapters │
-│ Pyth → 8 dec    │   │ (Chainlink etc) │
-│ pause, admin    │   │                 │
-└─────────────────┘   └─────────────────┘
+  ┌──────────────────────┐   ┌──────────────────────────────────────┐
+  │ MorphoProtocolAdapter │   │ PassthroughProtocolAdapter           │
+  │ IOracle (8→36 dec)   │   │ (instances: Aave, Compound, ...)    │
+  │                      │   │ AggregatorV3Interface passthrough    │
+  └──────────┬───────────┘   └──────────────────┬───────────────────┘
+             │                                  │
+             └────────────────┬─────────────────┘
+                              │
+                              ▼
+                ┌──────────────────────┐
+                │ AggregatorV3Interface │  ← contract boundary
+                └──────────────────────┘
+                              ▲
+                              │
+                    ┌─────────┴─────────┐
+                    │                   │
+                    ▼                   ▼
+  ┌──────────────────────┐   ┌──────────────────────┐
+  │ PythOracleAdapter    │   │ Future adapters      │
+  │ Pyth → 8 dec         │   │ (Chainlink etc)      │
+  │ pause, admin         │   │                      │
+  └──────────────────────┘   └──────────────────────┘
 
-ORACLE ADAPTERS (canonical price source per asset)
+  ORACLE ADAPTERS (canonical price source per asset)
 ```
 
 **Oracle layer** -- one `PythOracleAdapter` per asset, implements `AggregatorV3Interface` at 8 decimals. Governance controls (pause for corporate actions) live here.

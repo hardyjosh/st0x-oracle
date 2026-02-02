@@ -4,7 +4,19 @@
 
 Solidity oracle adapter system that bridges Pyth Network price feeds to DeFi lending protocols (Morpho Blue, Aave V3, Compound V3). Two-layer architecture: oracle adapters (price source) and protocol adapters (protocol-specific interface).
 
+## Environment Setup
+
+This project uses Nix flakes for reproducible toolchain management (Foundry, solc, etc.) via the `rainix` flake. **Always enter the nix shell before running any commands.**
+
+```bash
+nix develop          # Enter the nix dev shell (provides forge, solc, etc.)
+```
+
+If `nix develop` is not available, use `nix-shell` or ensure `direnv` is configured to auto-load the flake.
+
 ## Build & Test
+
+All commands below assume you are inside the nix dev shell.
 
 ```bash
 forge build          # Compile contracts

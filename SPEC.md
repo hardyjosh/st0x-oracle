@@ -9,7 +9,7 @@
 
 ## 1. Problem Statement
 
-ST0x tokenized equities need to integrate with DeFi lending protocols (Morpho Blue, Aave V3, Compound V3, and future protocols) to enable borrowing against tokenized stock collateral. Each protocol has its own oracle interface requirements:
+ST0x wrapped tokenized equities (ERC-4626 vault shares) need to integrate with DeFi lending protocols (Morpho Blue, Aave V3, Compound V3, and future protocols) to enable borrowing against tokenized stock collateral. The oracle prices vault shares by combining the Pyth price of the underlying equity with the vault's assets-per-share ratio. Each protocol has its own oracle interface requirements:
 
 - **Morpho Blue**: Expects `IOracle.price()` returning a `uint256` scaled to 1e36
 - **Aave V3**: Expects Chainlink's `AggregatorV3Interface` with `latestAnswer()` and `latestRoundData()`
@@ -123,33 +123,48 @@ Deploy multiple proxy *instances* from the same beacon for different protocols.
 **Storage:**
 
 ```solidity
-address public st0xToken;        // Set once, no setter
-string internal _description;    // e.g., "AAPL / USD"
-bytes32 public priceId;          // Pyth feed ID
+address public vault;            // ERC-4626 vault, set once, no setter
+bytes32 public priceId;          // Pyth feed ID for underlying asset
 uint256 public maxAge;           // Max acceptable price age
 bool public paused;              // Emergency pause
+address public admin;            // Admin for governance
 ```
 
 Note: No `pyth` address storage - derived from `LibPyth.getPriceFeedContract(block.chainid)` at runtime.
+
+**Price Formula:**
+
+```
+vaultSharePrice = pythPrice * vault.totalAssets() / vault.totalSupply()
+```
+
+The oracle prices ERC-4626 vault shares by combining the Pyth price of the underlying equity with the vault's assets-per-share ratio. This correctly handles stock splits (totalAssets increases), dividend reinvestment (totalAssets increases), and the wrapped token premium/discount.
 
 **Implementation:**
 
 ```solidity
 import {LibPyth} from "rain.pyth/src/lib/pyth/LibPyth.sol";
+import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 function latestAnswer() external view override returns (int256) {
     _validateNotPaused();
 
-    // Get Pyth contract from LibPyth (audited code)
     IPyth pyth = LibPyth.getPriceFeedContract(block.chainid);
-
-    // Fetch price - reverts if older than maxAge
     PythStructs.Price memory priceData = pyth.getPriceNoOlderThan(priceId, maxAge);
 
-    // Scale to 8 decimals (Chainlink standard)
-    int256 scaledPrice = _scaleToDecimals(priceData.price, priceData.expo, 8);
+    return _vaultSharePrice(priceData);
+}
 
-    return scaledPrice;
+function _vaultSharePrice(PythStructs.Price memory priceData) internal view returns (int256) {
+    int256 price8 = _conservativeScaledPrice(priceData);
+
+    IERC4626 vaultContract = IERC4626(vault);
+    uint256 totalAssets = vaultContract.totalAssets();
+    uint256 totalSupply = vaultContract.totalSupply();
+
+    if (totalSupply == 0) revert ZeroVaultSupply();
+
+    return int256(uint256(price8) * totalAssets / totalSupply);
 }
 ```
 
@@ -272,16 +287,16 @@ contract PassthroughProtocolAdapterBeaconSetDeployer {
 6. Deploy PassthroughProtocolAdapterBeaconSetDeployer
 7. Deploy OracleUnifiedDeployer
 
-**For a new asset (e.g., AAPL/USD):**
+**For a new vault (e.g., wrapped AAPL):**
 
 ```solidity
 OracleUnifiedDeployer.newOracleAndProtocolAdapters(
-    st0xToken,      // AAPL token address
+    vault,          // Wrapped AAPL ERC-4626 vault address
     priceId,        // AAPL/USD feed ID (from LibPyth constants)
-    60,             // maxAge in seconds
-    "AAPL / USD"    // description
+    60              // maxAge in seconds
 );
 // Pyth address derived from LibPyth.getPriceFeedContract(block.chainid)
+// Vault share price = Pyth AAPL price * vault.totalAssets() / vault.totalSupply()
 ```
 
 ---
@@ -364,8 +379,10 @@ No separation of roles.
 
 1. **Negative prices**: Pyth prices can theoretically be negative; handle appropriately (revert)
 2. **Confidence intervals**: Pyth provides confidence data; consider rejecting wide confidence
-3. **Overflow**: Ensure scaling math cannot overflow
+3. **Overflow**: Ensure scaling math cannot overflow (checked arithmetic in 0.8.25)
 4. **Corporate actions**: Pause mechanism exists to prevent trading during splits/dividends
+5. **Zero vault supply**: Revert when vault has no shares minted (no valid price)
+6. **Vault ratio manipulation**: Vault totalAssets/totalSupply is trusted — vault must be a known st0x deployment
 
 ---
 

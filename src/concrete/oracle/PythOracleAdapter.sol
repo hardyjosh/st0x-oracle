@@ -8,6 +8,7 @@ import {LibPyth} from "rain.pyth/src/lib/pyth/LibPyth.sol";
 import {LibDecimalFloat, Float} from "rain.math.float/lib/LibDecimalFloat.sol";
 import {ICLONEABLE_V2_SUCCESS, ICloneableV2} from "rain.factory/interface/ICloneableV2.sol";
 import {Initializable} from "openzeppelin-contracts/contracts/proxy/utils/Initializable.sol";
+import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import {AggregatorV3Interface} from "src/interface/IAggregatorV3.sol";
 
 /// @dev Error raised when the oracle is paused.
@@ -17,8 +18,8 @@ error OraclePaused();
 /// positive.
 error NonPositivePrice(int256 price);
 
-/// @dev Error raised when a zero address is provided for the st0x token.
-error ZeroSt0xToken();
+/// @dev Error raised when a zero address is provided for the vault.
+error ZeroVault();
 
 /// @dev Error raised when a zero price ID is provided.
 error ZeroPriceId();
@@ -32,33 +33,40 @@ error OnlyAdmin();
 /// @dev Error raised when a zero address is provided for the admin.
 error ZeroAdmin();
 
+/// @dev Error raised when the vault has zero total supply (no shares minted).
+error ZeroVaultSupply();
+
 /// @title PythOracleAdapterConfig
 /// @notice Configuration for PythOracleAdapter initialization.
-/// @param st0xToken The st0x token address this oracle serves.
-/// @param priceId The Pyth price feed ID.
+/// @param vault The ERC-4626 vault address this oracle prices shares for.
+/// @param priceId The Pyth price feed ID for the underlying asset.
 /// @param maxAge Maximum acceptable price age in seconds.
 /// @param admin The admin address for governance.
 struct PythOracleAdapterConfig {
-    address st0xToken;
+    address vault;
     bytes32 priceId;
     uint256 maxAge;
     address admin;
 }
 
 /// @title PythOracleAdapter
-/// @notice Oracle adapter that fetches prices from Pyth Network and exposes
-/// them via Chainlink's AggregatorV3Interface. This is the canonical oracle
-/// per asset. Configuration (priceId, maxAge) is set once at initialization
-/// and is immutable thereafter - deploy a new proxy to change config and
-/// update protocol adapters via setOracle. Only governance is pause/unpause.
+/// @notice Oracle adapter that prices ERC-4626 vault shares by fetching the
+/// underlying asset price from Pyth Network and multiplying by the vault's
+/// assets-per-share ratio. Exposes prices via Chainlink's
+/// AggregatorV3Interface. This is the canonical oracle per vault.
+/// Configuration (priceId, maxAge) is set once at initialization and is
+/// immutable thereafter - deploy a new proxy to change config and update
+/// protocol adapters via setOracle. Only governance is pause/unpause.
 /// Pyth contract address is NOT stored - derived at runtime from
 /// LibPyth.getPriceFeedContract(block.chainid).
 /// Uses conservative pricing (price - confidence interval) per rain.pyth
 /// patterns. Scaling uses LibDecimalFloat for audited precision.
+///
+/// Price formula: vaultSharePrice = pythPrice * totalAssets / totalSupply
 contract PythOracleAdapter is AggregatorV3Interface, ICloneableV2, Initializable {
-    /// @dev The st0x token this oracle is for. Set once during initialization.
-    address public st0xToken;
-    /// @dev The Pyth price feed ID for this asset.
+    /// @dev The ERC-4626 vault this oracle prices shares for.
+    address public vault;
+    /// @dev The Pyth price feed ID for the underlying asset.
     bytes32 public priceId;
     /// @dev Maximum acceptable price age in seconds.
     uint256 public maxAge;
@@ -88,12 +96,12 @@ contract PythOracleAdapter is AggregatorV3Interface, ICloneableV2, Initializable
     function initialize(bytes calldata data) external initializer returns (bytes32) {
         PythOracleAdapterConfig memory config = abi.decode(data, (PythOracleAdapterConfig));
 
-        if (config.st0xToken == address(0)) revert ZeroSt0xToken();
+        if (config.vault == address(0)) revert ZeroVault();
         if (config.priceId == bytes32(0)) revert ZeroPriceId();
         if (config.maxAge == 0) revert ZeroMaxAge();
         if (config.admin == address(0)) revert ZeroAdmin();
 
-        st0xToken = config.st0xToken;
+        vault = config.vault;
         priceId = config.priceId;
         maxAge = config.maxAge;
         admin = config.admin;
@@ -130,7 +138,7 @@ contract PythOracleAdapter is AggregatorV3Interface, ICloneableV2, Initializable
         IPyth pyth = LibPyth.getPriceFeedContract(block.chainid);
         PythStructs.Price memory priceData = pyth.getPriceNoOlderThan(priceId, maxAge);
 
-        return _conservativeScaledPrice(priceData);
+        return _vaultSharePrice(priceData);
     }
 
     /// @inheritdoc AggregatorV3Interface
@@ -145,7 +153,7 @@ contract PythOracleAdapter is AggregatorV3Interface, ICloneableV2, Initializable
         IPyth pyth = LibPyth.getPriceFeedContract(block.chainid);
         PythStructs.Price memory priceData = pyth.getPriceNoOlderThan(priceId, maxAge);
 
-        int256 scaledPrice = _conservativeScaledPrice(priceData);
+        int256 scaledPrice = _vaultSharePrice(priceData);
 
         return (
             1, // roundId - Pyth doesn't have rounds
@@ -187,5 +195,26 @@ contract PythOracleAdapter is AggregatorV3Interface, ICloneableV2, Initializable
         //slither-disable-next-line unused-return
         (uint256 price8,) = LibDecimalFloat.toFixedDecimalLossy(conservativePriceFloat, 8);
         return int256(price8);
+    }
+
+    /// @dev Computes the vault share price by multiplying the conservative
+    /// Pyth price by the vault's assets-per-share ratio.
+    /// vaultSharePrice = pythPrice8 * totalAssets / totalSupply
+    /// Reverts if the vault has zero total supply.
+    /// @param priceData The Pyth price data.
+    /// @return The vault share price at 8 decimals.
+    function _vaultSharePrice(PythStructs.Price memory priceData) internal view returns (int256) {
+        int256 price8 = _conservativeScaledPrice(priceData);
+
+        IERC4626 vaultContract = IERC4626(vault);
+        uint256 totalAssets = vaultContract.totalAssets();
+        uint256 totalSupply = vaultContract.totalSupply();
+
+        if (totalSupply == 0) revert ZeroVaultSupply();
+
+        // Multiply before divide for precision. The 18-decimal units of
+        // totalAssets and totalSupply cancel out, preserving the 8-decimal
+        // scale of price8. Checked arithmetic guards against overflow.
+        return int256(uint256(price8) * totalAssets / totalSupply);
     }
 }

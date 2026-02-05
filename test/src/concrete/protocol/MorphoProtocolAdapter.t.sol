@@ -117,8 +117,7 @@ contract MorphoProtocolAdapterTest is Test {
             mockOracle, abi.encodeWithSelector(AggregatorV3Interface.latestAnswer.selector), abi.encode(mockPrice)
         );
 
-        MorphoProtocolAdapter adapter =
-            I_DEPLOYER.newMorphoProtocolAdapter(AggregatorV3Interface(mockOracle), admin);
+        MorphoProtocolAdapter adapter = I_DEPLOYER.newMorphoProtocolAdapter(AggregatorV3Interface(mockOracle), admin);
 
         uint256 morphoPrice = adapter.price();
         // 100e8 * 1e28 = 100e36
@@ -136,8 +135,7 @@ contract MorphoProtocolAdapterTest is Test {
             mockOracle, abi.encodeWithSelector(AggregatorV3Interface.latestAnswer.selector), abi.encode(mockPrice)
         );
 
-        MorphoProtocolAdapter adapter =
-            I_DEPLOYER.newMorphoProtocolAdapter(AggregatorV3Interface(mockOracle), admin);
+        MorphoProtocolAdapter adapter = I_DEPLOYER.newMorphoProtocolAdapter(AggregatorV3Interface(mockOracle), admin);
 
         uint256 morphoPrice = adapter.price();
         assertEq(morphoPrice, uint256(mockPrice) * 1e28);
@@ -152,8 +150,7 @@ contract MorphoProtocolAdapterTest is Test {
             mockOracle, abi.encodeWithSelector(AggregatorV3Interface.latestAnswer.selector), abi.encode(int256(0))
         );
 
-        MorphoProtocolAdapter adapter =
-            I_DEPLOYER.newMorphoProtocolAdapter(AggregatorV3Interface(mockOracle), admin);
+        MorphoProtocolAdapter adapter = I_DEPLOYER.newMorphoProtocolAdapter(AggregatorV3Interface(mockOracle), admin);
 
         vm.expectRevert(abi.encodeWithSelector(NonPositivePrice.selector));
         adapter.price();
@@ -166,13 +163,10 @@ contract MorphoProtocolAdapterTest is Test {
 
         address mockOracle = address(uint160(uint256(keccak256("mock.oracle"))));
         vm.mockCall(
-            mockOracle,
-            abi.encodeWithSelector(AggregatorV3Interface.latestAnswer.selector),
-            abi.encode(negativePrice)
+            mockOracle, abi.encodeWithSelector(AggregatorV3Interface.latestAnswer.selector), abi.encode(negativePrice)
         );
 
-        MorphoProtocolAdapter adapter =
-            I_DEPLOYER.newMorphoProtocolAdapter(AggregatorV3Interface(mockOracle), admin);
+        MorphoProtocolAdapter adapter = I_DEPLOYER.newMorphoProtocolAdapter(AggregatorV3Interface(mockOracle), admin);
 
         vm.expectRevert(abi.encodeWithSelector(NonPositivePrice.selector));
         adapter.price();

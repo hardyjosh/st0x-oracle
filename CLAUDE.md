@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Solidity oracle adapter system that bridges Pyth Network price feeds to DeFi lending protocols (Morpho Blue, Aave V3, Compound V3). Two-layer architecture: oracle adapters (price source) and protocol adapters (protocol-specific interface).
+Solidity oracle adapter system that prices ERC-4626 vault shares by combining Pyth Network price feeds with vault share ratios, for DeFi lending protocols (Morpho Blue, Aave V3, Compound V3). Two-layer architecture: oracle adapters (price source) and protocol adapters (protocol-specific interface). The oracle computes `vaultSharePrice = pythPrice * totalAssets / totalSupply`.
 
 ## Environment Setup
 
@@ -28,8 +28,8 @@ forge fmt --check    # Check formatting without modifying
 
 ## Architecture (Two Layers)
 
-**Oracle Layer** — canonical price source per asset, implements `AggregatorV3Interface` (8 decimals):
-- `PythOracleAdapter` — fetches from Pyth, scales to 8 decimals, has governance (pause, setPriceId, setMaxAge)
+**Oracle Layer** — canonical price source per vault, implements `AggregatorV3Interface` (8 decimals):
+- `PythOracleAdapter` — fetches from Pyth, multiplies by vault share ratio (totalAssets/totalSupply), scales to 8 decimals, has governance (pause)
 
 **Protocol Layer** — indirection so oracle swaps don't require protocol governance:
 - `PassthroughProtocolAdapter` — for Aave/Compound/any Chainlink-compatible protocol, passes through `AggregatorV3Interface`
@@ -37,10 +37,11 @@ forge fmt --check    # Check formatting without modifying
 
 **Deployers** — beacon proxy pattern per `st0x.deploy`:
 - Each contract type has a `BeaconSetDeployer` that owns a beacon and deploys proxies
-- `OracleUnifiedDeployer` orchestrates deploying oracle + all protocol adapters for a new asset
+- `OracleUnifiedDeployer` orchestrates deploying oracle + all protocol adapters for a new vault
 
 ## Key Design Decisions
 
+- **Vault-aware pricing**: Oracle stores an ERC-4626 vault address and prices shares as `pythPrice * totalAssets / totalSupply`
 - **No stored Pyth address**: Use `LibPyth.getPriceFeedContract(block.chainid)` at runtime (from `rain.pyth`)
 - **AggregatorV3Interface as boundary**: Industry standard between oracle and protocol layers
 - **Beacon proxies**: All instances share implementations, upgradeable via beacon owner
@@ -53,7 +54,7 @@ forge fmt --check    # Check formatting without modifying
 src/
 ├── concrete/
 │   ├── oracle/
-│   │   └── PythOracleAdapter.sol          # Core oracle, AggregatorV3Interface
+│   │   └── PythOracleAdapter.sol          # Vault-aware oracle, AggregatorV3Interface
 │   ├── protocol/
 │   │   ├── MorphoProtocolAdapter.sol      # IOracle, scales 8→36
 │   │   └── PassthroughProtocolAdapter.sol # AggregatorV3Interface passthrough
@@ -70,13 +71,14 @@ src/
 
 - `rain.pyth` — `LibPyth.getPriceFeedContract()` and price feed ID constants
 - `pyth-sdk-solidity` — `IPyth`, `PythStructs`
-- `openzeppelin-contracts` — `UpgradeableBeacon`, `BeaconProxy`, `Initializable`, `AccessControl`
+- `openzeppelin-contracts` — `UpgradeableBeacon`, `BeaconProxy`, `Initializable`, `IERC4626`
 
 ## Security Rules
 
 - Pyth prices can be negative — always revert on `answer <= 0`
 - Scaling math must not overflow — use checked arithmetic
 - `maxAge` must be enforced on every price read
+- Vault with zero total supply must revert (no valid price)
 - Pause mechanism for corporate actions (splits, dividends)
 - All admin roles held by founder multisig, no role separation
 

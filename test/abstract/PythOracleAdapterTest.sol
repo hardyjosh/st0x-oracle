@@ -23,12 +23,12 @@ contract PythOracleAdapterTest is Test {
         );
     }
 
-    function createOracle(address st0xToken, bytes32 priceId, uint256 maxAge, address admin)
+    function createOracle(address vault, bytes32 priceId, uint256 maxAge, address admin)
         internal
         returns (PythOracleAdapter)
     {
         return I_DEPLOYER.newPythOracleAdapter(
-            PythOracleAdapterConfig({st0xToken: st0xToken, priceId: priceId, maxAge: maxAge, admin: admin})
+            PythOracleAdapterConfig({vault: vault, priceId: priceId, maxAge: maxAge, admin: admin})
         );
     }
 }

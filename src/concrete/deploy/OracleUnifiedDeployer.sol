@@ -14,7 +14,7 @@ import {LibProdDeploy} from "src/lib/LibProdDeploy.sol";
 
 /// @title OracleUnifiedDeployer
 /// @notice Atomically deploys a PythOracleAdapter and all protocol adapters
-/// (Morpho, Passthrough for Aave/Compound) for a new asset. The beacon set
+/// (Morpho, Passthrough for Aave/Compound) for a new vault. The beacon set
 /// deployer addresses are hardcoded to simplify and harden deployment by
 /// providing an audit trail in git of any address modifications.
 contract OracleUnifiedDeployer {
@@ -23,16 +23,16 @@ contract OracleUnifiedDeployer {
         address sender, address pythOracleAdapter, address morphoProtocolAdapter, address passthroughProtocolAdapter
     );
 
-    /// @notice Deploy oracle + all protocol adapters for a new asset.
-    /// @param st0xToken The st0x token address.
-    /// @param priceId The Pyth price feed ID.
+    /// @notice Deploy oracle + all protocol adapters for a new vault.
+    /// @param vault The ERC-4626 vault address.
+    /// @param priceId The Pyth price feed ID for the underlying asset.
     /// @param maxAge Maximum acceptable price age in seconds.
-    function newOracleAndProtocolAdapters(address st0xToken, bytes32 priceId, uint256 maxAge) external {
+    function newOracleAndProtocolAdapters(address vault, bytes32 priceId, uint256 maxAge) external {
         // 1. Deploy oracle adapter
         PythOracleAdapter oracleAdapter = PythOracleAdapterBeaconSetDeployer(
             LibProdDeploy.PYTH_ORACLE_ADAPTER_BEACON_SET_DEPLOYER
         ).newPythOracleAdapter(
-            PythOracleAdapterConfig({st0xToken: st0xToken, priceId: priceId, maxAge: maxAge, admin: msg.sender})
+            PythOracleAdapterConfig({vault: vault, priceId: priceId, maxAge: maxAge, admin: msg.sender})
         );
 
         AggregatorV3Interface oracleRef = AggregatorV3Interface(address(oracleAdapter));

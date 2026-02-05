@@ -6,16 +6,15 @@ import {Test} from "forge-std/Test.sol";
 import {OracleUnifiedDeployer} from "src/concrete/deploy/OracleUnifiedDeployer.sol";
 import {LibProdDeploy} from "src/lib/LibProdDeploy.sol";
 import {PythOracleAdapterBeaconSetDeployer} from "src/concrete/deploy/PythOracleAdapterBeaconSetDeployer.sol";
-import {
-    PassthroughProtocolAdapterBeaconSetDeployer
-} from "src/concrete/deploy/PassthroughProtocolAdapterBeaconSetDeployer.sol";
+import {PassthroughProtocolAdapterBeaconSetDeployer} from
+    "src/concrete/deploy/PassthroughProtocolAdapterBeaconSetDeployer.sol";
 import {MorphoProtocolAdapterBeaconSetDeployer} from "src/concrete/deploy/MorphoProtocolAdapterBeaconSetDeployer.sol";
 import {PythOracleAdapterConfig} from "src/concrete/oracle/PythOracleAdapter.sol";
 import {AggregatorV3Interface} from "src/interface/IAggregatorV3.sol";
 
 contract OracleUnifiedDeployerTest is Test {
     function testOracleUnifiedDeployer(
-        address st0xToken,
+        address vault,
         bytes32 priceId,
         uint256 maxAge,
         address oracleAdapter,
@@ -29,15 +28,12 @@ contract OracleUnifiedDeployerTest is Test {
         OracleUnifiedDeployer unifiedDeployer = new OracleUnifiedDeployer();
 
         // Mock the PythOracleAdapterBeaconSetDeployer at the prod address.
-        vm.etch(
-            LibProdDeploy.PYTH_ORACLE_ADAPTER_BEACON_SET_DEPLOYER,
-            vm.getCode("PythOracleAdapterBeaconSetDeployer")
-        );
+        vm.etch(LibProdDeploy.PYTH_ORACLE_ADAPTER_BEACON_SET_DEPLOYER, vm.getCode("PythOracleAdapterBeaconSetDeployer"));
         vm.mockCall(
             LibProdDeploy.PYTH_ORACLE_ADAPTER_BEACON_SET_DEPLOYER,
             abi.encodeWithSelector(
                 PythOracleAdapterBeaconSetDeployer.newPythOracleAdapter.selector,
-                PythOracleAdapterConfig({st0xToken: st0xToken, priceId: priceId, maxAge: maxAge, admin: address(this)})
+                PythOracleAdapterConfig({vault: vault, priceId: priceId, maxAge: maxAge, admin: address(this)})
             ),
             abi.encode(oracleAdapter)
         );
@@ -74,6 +70,6 @@ contract OracleUnifiedDeployerTest is Test {
 
         vm.expectEmit();
         emit OracleUnifiedDeployer.Deployment(address(this), oracleAdapter, morphoAdapter, passthroughAdapter);
-        unifiedDeployer.newOracleAndProtocolAdapters(st0xToken, priceId, maxAge);
+        unifiedDeployer.newOracleAndProtocolAdapters(vault, priceId, maxAge);
     }
 }

@@ -8,13 +8,13 @@ import {AggregatorV3Interface} from "src/interface/IAggregatorV3.sol";
 
 contract PythOracleAdapterSetPausedTest is PythOracleAdapterTest {
     /// Test that setPaused works for admin.
-    function testSetPaused(address st0xToken, bytes32 priceId, uint256 maxAge, address admin) external {
-        vm.assume(st0xToken != address(0));
+    function testSetPaused(address vault, bytes32 priceId, uint256 maxAge, address admin) external {
+        vm.assume(vault != address(0));
         vm.assume(priceId != bytes32(0));
         vm.assume(maxAge > 0);
         vm.assume(admin != address(0));
 
-        PythOracleAdapter oracle = createOracle(st0xToken, priceId, maxAge, admin);
+        PythOracleAdapter oracle = createOracle(vault, priceId, maxAge, admin);
 
         assertEq(oracle.paused(), false);
 
@@ -28,20 +28,16 @@ contract PythOracleAdapterSetPausedTest is PythOracleAdapterTest {
     }
 
     /// Test that setPaused reverts for non-admin.
-    function testSetPausedOnlyAdmin(
-        address st0xToken,
-        bytes32 priceId,
-        uint256 maxAge,
-        address admin,
-        address nonAdmin
-    ) external {
-        vm.assume(st0xToken != address(0));
+    function testSetPausedOnlyAdmin(address vault, bytes32 priceId, uint256 maxAge, address admin, address nonAdmin)
+        external
+    {
+        vm.assume(vault != address(0));
         vm.assume(priceId != bytes32(0));
         vm.assume(maxAge > 0);
         vm.assume(admin != address(0));
         vm.assume(nonAdmin != admin);
 
-        PythOracleAdapter oracle = createOracle(st0xToken, priceId, maxAge, admin);
+        PythOracleAdapter oracle = createOracle(vault, priceId, maxAge, admin);
 
         vm.prank(nonAdmin);
         vm.expectRevert(abi.encodeWithSelector(OnlyAdmin.selector));
@@ -49,13 +45,13 @@ contract PythOracleAdapterSetPausedTest is PythOracleAdapterTest {
     }
 
     /// Test that latestAnswer reverts when paused.
-    function testLatestAnswerWhenPaused(address st0xToken, bytes32 priceId, uint256 maxAge, address admin) external {
-        vm.assume(st0xToken != address(0));
+    function testLatestAnswerWhenPaused(address vault, bytes32 priceId, uint256 maxAge, address admin) external {
+        vm.assume(vault != address(0));
         vm.assume(priceId != bytes32(0));
         vm.assume(maxAge > 0);
         vm.assume(admin != address(0));
 
-        PythOracleAdapter oracle = createOracle(st0xToken, priceId, maxAge, admin);
+        PythOracleAdapter oracle = createOracle(vault, priceId, maxAge, admin);
 
         vm.prank(admin);
         oracle.setPaused(true);
@@ -65,13 +61,13 @@ contract PythOracleAdapterSetPausedTest is PythOracleAdapterTest {
     }
 
     /// Test that latestRoundData reverts when paused.
-    function testLatestRoundDataWhenPaused(address st0xToken, bytes32 priceId, uint256 maxAge, address admin) external {
-        vm.assume(st0xToken != address(0));
+    function testLatestRoundDataWhenPaused(address vault, bytes32 priceId, uint256 maxAge, address admin) external {
+        vm.assume(vault != address(0));
         vm.assume(priceId != bytes32(0));
         vm.assume(maxAge > 0);
         vm.assume(admin != address(0));
 
-        PythOracleAdapter oracle = createOracle(st0xToken, priceId, maxAge, admin);
+        PythOracleAdapter oracle = createOracle(vault, priceId, maxAge, admin);
 
         vm.prank(admin);
         oracle.setPaused(true);
@@ -81,13 +77,13 @@ contract PythOracleAdapterSetPausedTest is PythOracleAdapterTest {
     }
 
     /// Test that PauseSet event is emitted.
-    function testPauseSetEvent(address st0xToken, bytes32 priceId, uint256 maxAge, address admin) external {
-        vm.assume(st0xToken != address(0));
+    function testPauseSetEvent(address vault, bytes32 priceId, uint256 maxAge, address admin) external {
+        vm.assume(vault != address(0));
         vm.assume(priceId != bytes32(0));
         vm.assume(maxAge > 0);
         vm.assume(admin != address(0));
 
-        PythOracleAdapter oracle = createOracle(st0xToken, priceId, maxAge, admin);
+        PythOracleAdapter oracle = createOracle(vault, priceId, maxAge, admin);
 
         vm.expectEmit();
         emit PythOracleAdapter.PauseSet(true);

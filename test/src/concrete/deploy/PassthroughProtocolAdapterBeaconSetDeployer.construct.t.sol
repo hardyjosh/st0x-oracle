@@ -49,8 +49,6 @@ contract PassthroughProtocolAdapterBeaconSetDeployerConstructTest is Test {
             })
         );
 
-        assertEq(
-            address(deployer.I_PASSTHROUGH_PROTOCOL_ADAPTER_BEACON().implementation()), address(implementation)
-        );
+        assertEq(address(deployer.I_PASSTHROUGH_PROTOCOL_ADAPTER_BEACON().implementation()), address(implementation));
     }
 }

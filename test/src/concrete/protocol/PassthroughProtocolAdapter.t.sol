@@ -56,10 +56,7 @@ contract PassthroughProtocolAdapterTest is Test {
 
         bool eventFound = false;
         for (uint256 i = 0; i < logs.length; i++) {
-            if (
-                logs[i].topics[0]
-                    == keccak256("PassthroughProtocolAdapterInitialized(address,(address,address))")
-            ) {
+            if (logs[i].topics[0] == keccak256("PassthroughProtocolAdapterInitialized(address,(address,address))")) {
                 eventFound = true;
                 break;
             }
@@ -168,9 +165,7 @@ contract PassthroughProtocolAdapterTest is Test {
         vm.assume(admin != address(0));
 
         address mockOracle = address(uint160(uint256(keccak256("mock.oracle"))));
-        vm.mockCall(
-            mockOracle, abi.encodeWithSelector(AggregatorV3Interface.description.selector), abi.encode("")
-        );
+        vm.mockCall(mockOracle, abi.encodeWithSelector(AggregatorV3Interface.description.selector), abi.encode(""));
 
         PassthroughProtocolAdapter adapter =
             I_DEPLOYER.newPassthroughProtocolAdapter(AggregatorV3Interface(mockOracle), admin);

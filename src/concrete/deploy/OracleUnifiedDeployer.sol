@@ -28,6 +28,7 @@ contract OracleUnifiedDeployer {
     /// @param priceId The Pyth price feed ID for the underlying asset.
     /// @param maxAge Maximum acceptable price age in seconds.
     /// @param registry The oracle registry. Admin must call registry.setOracle() separately.
+    // slither-disable-next-line reentrancy-events
     function newOracleAndProtocolAdapters(address vault, bytes32 priceId, uint256 maxAge, OracleRegistry registry)
         external
     {

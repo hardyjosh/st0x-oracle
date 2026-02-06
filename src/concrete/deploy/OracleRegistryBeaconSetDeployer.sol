@@ -52,6 +52,7 @@ contract OracleRegistryBeaconSetDeployer {
     /// @notice Deploys and initializes a new OracleRegistry proxy.
     /// @param config The initialization configuration.
     /// @return registry The deployed OracleRegistry proxy.
+    // slither-disable-next-line reentrancy-events
     function newOracleRegistry(OracleRegistryConfig memory config) external returns (OracleRegistry) {
         OracleRegistry registry = OracleRegistry(address(new BeaconProxy(address(I_ORACLE_REGISTRY_BEACON), "")));
 

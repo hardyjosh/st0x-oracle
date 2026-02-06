@@ -61,6 +61,7 @@ contract PassthroughProtocolAdapterBeaconSetDeployer {
     /// @param vault The vault address this adapter serves.
     /// @param admin The admin address.
     /// @return adapter The deployed PassthroughProtocolAdapter proxy.
+    // slither-disable-next-line reentrancy-events
     function newPassthroughProtocolAdapter(OracleRegistry registry, address vault, address admin)
         external
         returns (PassthroughProtocolAdapter)

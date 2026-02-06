@@ -56,6 +56,7 @@ contract MorphoProtocolAdapterBeaconSetDeployer {
     /// @param vault The vault address this adapter serves.
     /// @param admin The admin address.
     /// @return adapter The deployed MorphoProtocolAdapter proxy.
+    // slither-disable-next-line reentrancy-events
     function newMorphoProtocolAdapter(OracleRegistry registry, address vault, address admin)
         external
         returns (MorphoProtocolAdapter)

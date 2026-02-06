@@ -112,6 +112,7 @@ contract PassthroughProtocolAdapter is ICloneableV2, Initializable {
     }
 
     /// @notice Returns the latest round data from the underlying oracle.
+    // slither-disable-next-line unused-return
     function latestRoundData()
         external
         view

@@ -43,6 +43,8 @@ contract OracleRegistry is ICloneableV2, Initializable {
     event OracleRegistryInitialized(address indexed sender, OracleRegistryConfig config);
     /// @dev Emitted when an oracle is set for a vault.
     event OracleSet(address indexed vault, address indexed oldOracle, address indexed newOracle);
+    /// @dev Emitted when the admin is changed.
+    event AdminSet(address indexed oldAdmin, address indexed newAdmin);
 
     constructor() {
         _disableInitializers();
@@ -72,6 +74,14 @@ contract OracleRegistry is ICloneableV2, Initializable {
     modifier onlyAdmin() {
         if (msg.sender != admin) revert OnlyAdmin();
         _;
+    }
+
+    /// @notice Update the admin address. Admin only.
+    /// @param newAdmin The new admin address.
+    function setAdmin(address newAdmin) external onlyAdmin {
+        if (newAdmin == address(0)) revert ZeroAdmin();
+        emit AdminSet(admin, newAdmin);
+        admin = newAdmin;
     }
 
     /// @notice Set or update the oracle for a vault. Admin only.

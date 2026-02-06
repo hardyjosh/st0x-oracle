@@ -12,6 +12,7 @@ import {
     ZeroOracle,
     ArrayLengthMismatch
 } from "src/concrete/registry/OracleRegistry.sol";
+import {ICLONEABLE_V2_SUCCESS} from "rain.factory/interface/ICloneableV2.sol";
 import {AggregatorV3Interface} from "src/interface/IAggregatorV3.sol";
 import {Vm} from "forge-std/Test.sol";
 
@@ -249,6 +250,74 @@ contract OracleRegistryGetOracleTest is OracleRegistryTest {
         OracleRegistry registry = createRegistry(admin);
 
         vm.prank(admin);
+        registry.setOracle(vault, AggregatorV3Interface(oracle));
+
+        assertEq(address(registry.getOracle(vault)), oracle);
+    }
+}
+
+contract OracleRegistrySetAdminTest is OracleRegistryTest {
+    event AdminSet(address indexed oldAdmin, address indexed newAdmin);
+
+    /// Test that only admin can call setAdmin.
+    function testSetAdminOnlyAdmin(address admin, address notAdmin, address newAdmin) external {
+        vm.assume(admin != address(0));
+        vm.assume(notAdmin != admin);
+        vm.assume(newAdmin != address(0));
+
+        OracleRegistry registry = createRegistry(admin);
+
+        vm.prank(notAdmin);
+        vm.expectRevert(abi.encodeWithSelector(OnlyAdmin.selector));
+        registry.setAdmin(newAdmin);
+    }
+
+    /// Test that zero address reverts.
+    function testSetAdminZeroAddress(address admin) external {
+        vm.assume(admin != address(0));
+
+        OracleRegistry registry = createRegistry(admin);
+
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(ZeroAdmin.selector));
+        registry.setAdmin(address(0));
+    }
+
+    /// Test successful admin change.
+    function testSetAdminSuccess(address admin, address newAdmin) external {
+        vm.assume(admin != address(0));
+        vm.assume(newAdmin != address(0));
+
+        OracleRegistry registry = createRegistry(admin);
+
+        vm.prank(admin);
+        vm.expectEmit(true, true, true, true);
+        emit AdminSet(admin, newAdmin);
+        registry.setAdmin(newAdmin);
+
+        assertEq(registry.admin(), newAdmin);
+    }
+
+    /// Test that new admin can perform admin actions.
+    function testSetAdminNewAdminCanAct(address admin, address newAdmin, address vault, address oracle) external {
+        vm.assume(admin != address(0));
+        vm.assume(newAdmin != address(0));
+        vm.assume(admin != newAdmin);
+        vm.assume(vault != address(0));
+        vm.assume(oracle != address(0));
+
+        OracleRegistry registry = createRegistry(admin);
+
+        vm.prank(admin);
+        registry.setAdmin(newAdmin);
+
+        // Old admin should no longer be able to act
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(OnlyAdmin.selector));
+        registry.setOracle(vault, AggregatorV3Interface(oracle));
+
+        // New admin should be able to act
+        vm.prank(newAdmin);
         registry.setOracle(vault, AggregatorV3Interface(oracle));
 
         assertEq(address(registry.getOracle(vault)), oracle);

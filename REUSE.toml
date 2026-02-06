@@ -12,7 +12,14 @@ path = [
     "foundry.toml",
     "REUSE.toml",
     "foundry.lock",
-    "lib/**",
+    "CLAUDE.md",
+    "SPEC.md",
 ]
 SPDX-FileCopyrightText = "Copyright (c) 2020 Rain Open Source Software Ltd"
 SPDX-License-Identifier = "LicenseRef-DCL-1.0"
+
+[[annotations]]
+path = "lib/**"
+SPDX-FileCopyrightText = "Various contributors"
+SPDX-License-Identifier = "MIT AND Apache-2.0"
+precedence = "override"

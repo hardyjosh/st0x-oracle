@@ -132,16 +132,19 @@ contract PythOracleAdapter is AggregatorV3Interface, ICloneableV2, Initializable
     }
 
     /// @inheritdoc AggregatorV3Interface
+    // slither-disable-next-line pyth-unchecked-confidence
     function latestAnswer() external view override returns (int256) {
         _validateNotPaused();
 
         IPyth pyth = LibPyth.getPriceFeedContract(block.chainid);
         PythStructs.Price memory priceData = pyth.getPriceNoOlderThan(priceId, maxAge);
 
+        // Confidence is checked in _vaultSharePrice -> _conservativeScaledPrice
         return _vaultSharePrice(priceData);
     }
 
     /// @inheritdoc AggregatorV3Interface
+    // slither-disable-next-line pyth-unchecked-confidence
     function latestRoundData()
         external
         view
@@ -151,6 +154,7 @@ contract PythOracleAdapter is AggregatorV3Interface, ICloneableV2, Initializable
         _validateNotPaused();
 
         IPyth pyth = LibPyth.getPriceFeedContract(block.chainid);
+        // Confidence is checked in _vaultSharePrice -> _conservativeScaledPrice
         PythStructs.Price memory priceData = pyth.getPriceNoOlderThan(priceId, maxAge);
 
         int256 scaledPrice = _vaultSharePrice(priceData);
